@@ -33,6 +33,7 @@ struct Tree_val
 	}
 };
 
+//红黑树迭代器
 template<class T,class Ref,class Ptr>
 struct RB_TreeIterator
 {
@@ -78,25 +79,79 @@ struct RB_TreeIterator
 	}
 	Self operator--()
 	{
-		
+		if (_node->_left)
+		{
+			Node* max = _node->_left;
+			while (max->_right)
+			{
+				max = max->_right;
+			}
+			_node=max;
+		}
+		else
+		{
+			Node* cur = _node;
+			Node* parent = cur->_parent;
+			while (parent && cur==parent->_left)
+			{
+				cur = cur->_parent;
+				parent = parent->_parent;
+			}
+			_node = parent;
+		}
 		return *this;
 	}
 	bool operator!=(const Self&i)
 	{
 		return _node != i._node;
 	}
+	bool operator==(const Self& b)
+	{
+		return _node == b._node;
+	}
 };
+
 
 template<class K,class T,class KeyOft>
 struct R_B_Tree
 {
 	KeyOft kot;
 	typedef Tree_val<T> Node;
+	typedef R_B_Tree<K, T, KeyOft> RBTree;
 public:
 	typedef RB_TreeIterator<T, T&, T*> iterator;
 	R_B_Tree()
 	{
 		_root = nullptr;
+	}
+	R_B_Tree(const RBTree& b)
+	{
+		_root = Copy(b._root);
+	}
+	~R_B_Tree()
+	{
+		_root = nullptr;
+		Destroy(_root);
+	}
+	iterator Find(const K&key)
+	{
+		Node* cur = _root;
+		while (cur)
+		{
+			if (kot(cur->_date) > key)
+			{
+				cur = cur->_left;
+			}
+			else if (kot(cur->_date) < key)
+			{
+				cur = cur->_right;
+			}
+			else
+			{
+				return iterator(cur);
+			}
+		}
+		return iterator(nullptr);
 	}
 	iterator begin()
 	{
@@ -182,12 +237,12 @@ public:
 	}
 
 	
-	bool insert(const T&val)
+	pair<iterator,bool> insert(const T&val)
 	{
 		if (_root == nullptr)
 		{
 			_root = new Node(val,BLACK);
-			return true;
+			return make_pair(iterator(_root),true);
 		}
 
 		Node* parent = nullptr;
@@ -206,10 +261,11 @@ public:
 			}
 			else
 			{
-				return false;
+				return make_pair(iterator(cur), false);
 			}
 		}
 		cur = new Node(val,RED);
+		Node* newnode = cur;
 		if (kot(parent->_date) >kot(cur->_date))
 		{
 			parent->_left = cur;
@@ -285,7 +341,7 @@ public:
 			}
 			_root->_color = BLACK;
 		}
-		return true;
+		return make_pair(iterator(newnode),true);
 	}
 	int treeH(Node* root)
 	{
@@ -295,36 +351,10 @@ public:
 		int R = treeH(root->_right);
 		return L > R ? L + 1 : R + 1;
 	}
-	void _tree_b(Node* root)
-	{
-		if (root == nullptr)
-			return;
-		_tree_b(root->_left);
-		cout << kot(root->_date) << endl;
-		_tree_b(root->_right);
-	}
+	
 	void tree_K()
 	{
 		_tree_b(_root);
-	}
-
-	bool _isban(Node* root,int count,int&BC)
-	{
-		if (!root)
-		{
-			if (count != BC)
-				return false;
-			else
-				return true;
-		}
-		if (root->_color == RED&&root->_parent->_color==RED)
-		{
-			cout << "出现连续红节点" << endl;
-			return false;
-		}
-		if (root->_color == BLACK)
-			count++;
-		return _isban(root->_left,count,BC) && _isban(root->_right,count,BC);
 	}
 
 	bool isban()
@@ -343,6 +373,78 @@ public:
 		}
 		return _isban(_root,0,Black_d);
 	}
+	RBTree& operator==(RBTree T)
+	{
+		swap(_root, T._root);
+		return *this;
+	}
 private:
+	void Destroy(Node* root)
+	{
+		if (!root)
+			return;
+		Destroy(root->_left);
+		Destroy(root->_right);
+		delete root;
+	}
+
+	bool _isban(Node* root, int count, int& BC)
+	{
+		if (!root)
+		{
+			if (count != BC)
+				return false;
+			else
+				return true;
+		}
+		if (root->_color == RED && root->_parent->_color == RED)
+		{
+			cout << "出现连续红节点" << endl;
+			return false;
+		}
+		if (root->_color == BLACK)
+			count++;
+		return _isban(root->_left, count, BC) && _isban(root->_right, count, BC);
+	}
+	void _tree_b(Node* root)
+	{
+		if (root == nullptr)
+			return;
+		_tree_b(root->_left);
+		cout << kot(root->_date) << endl;
+		_tree_b(root->_right);
+	}
+
+	Node* Copy(Node* root)
+	{
+		if (!root)
+			return nullptr;
+		
+		Node* newnode = new Node(root->_date,root->_color);
+		newnode->_left = Copy(root->_left);
+		newnode->_right = Copy(root->_right);
+		if (newnode->_left)
+		{
+			newnode->_left->_parent = newnode;
+		}
+		if (newnode->_right)
+		{
+			newnode->_right->_parent = newnode;
+		}
+		return newnode;
+	}
+	Node* Copy(Node* root,Node*prev)
+	{
+		if (!root)
+			return nullptr;
+		Node* newnode = new Node(root->_date, root->_color);
+		if (prev != nullptr)
+		{
+			newnode->_parent = prev;
+		}
+		newnode->_left = Copy(root->_left,newnode);
+		newnode->_right = Copy(root->_right,newnode);
+		return newnode;
+	}
 	Node* _root;
 };
